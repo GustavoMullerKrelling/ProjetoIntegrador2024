@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, FlatList, Modal, Image, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { launchImageLibrary } from 'react-native-image-picker'; // Biblioteca para selecionar a imagem
-import { auth, db } from '../config/firebase'; // Importa auth e db do Firebase
-import { collection, addDoc, getDocs, deleteDoc, doc, setDoc, getDoc, where } from 'firebase/firestore'; // Importa funções do Firestore
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage'; // Importa funções para Firebase Storage
-import { createDrawerNavigator } from '@react-navigation/drawer'; // Para navegação Drawer
-import { NavigationContainer } from '@react-navigation/native'; // Para navegação
+import { launchImageLibrary } from 'react-native-image-picker';
+import { auth, db } from '../config/firebase';
+import { collection, addDoc, getDocs, deleteDoc, doc, setDoc, getDoc, query, where } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { createDrawerNavigator } from '@react-navigation/drawer';
+import { NavigationContainer } from '@react-navigation/native';
 
-// Função principal da HomeScreen
 export default function HomeScreen({ navigation }) {
   const [title, setTitle] = useState('');
   const [note, setNote] = useState('');
@@ -17,13 +16,13 @@ export default function HomeScreen({ navigation }) {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingIndex, setEditingIndex] = useState(null);
   const [isProfileModalVisible, setIsProfileModalVisible] = useState(false);
-  const [profileImage, setProfileImage] = useState(null); // Estado para a imagem do perfil
-  const [profileImageUrl, setProfileImageUrl] = useState(null); // Estado para armazenar a URL da imagem de perfil do Firebase Storage
+  const [profileImage, setProfileImage] = useState(null);
+  const [profileImageUrl, setProfileImageUrl] = useState(null);
 
-  const storage = getStorage(); // Inicializa o Firebase Storage
+  const storage = getStorage();
 
   useEffect(() => {
-    if (!auth.currentUser) return; // Previne falha quando o usuário não está autenticado
+    if (!auth.currentUser) return;
 
     navigation.setOptions({
       headerTitle: () => (
@@ -41,65 +40,77 @@ export default function HomeScreen({ navigation }) {
       ),
     });
 
-  }, [navigation]);
+  }, [navigation, searchText]);
 
   useEffect(() => {
-    fetchNotes(); // Chama a função para buscar notas ao montar o componente
-    fetchProfileData(); // Carrega a imagem de perfil ao montar o componente
-
-  }, []);
-
-  // Função para buscar notas do Firestore
-  const fetchNotes = async () => {
-    console.log("Busquei notas")
     if (auth.currentUser) {
-      const uid = auth.currentUser.uid;
-      const notesCollection = collection(db, 'notes', where("uid" === uid));
-      const notesSnapshot = await getDocs(notesCollection);
-      console.log(notesSnapshot);
-      const notesList = notesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setNotes(notesList);
+      fetchNotes();
+      fetchProfileData();
+    }
+  }, [auth.currentUser]);
+
+  const fetchNotes = async () => {
+    try {
+      if (auth.currentUser) {
+        const uid = auth.currentUser.uid;
+        const notesQuery = query(collection(db, 'notes'), where("uid", "==", uid));
+        const notesSnapshot = await getDocs(notesQuery);
+        const notesList = notesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setNotes(notesList);
+      }
+    } catch (error) {
+      console.error("Erro ao buscar notas:", error);
     }
   };
 
-  // Função para buscar a imagem do perfil do Firestore
   const fetchProfileData = async () => {
     if (auth.currentUser) {
-      const userProfileDoc = doc(db, 'users', auth.currentUser.uid);
-      const userProfileSnapshot = await getDoc(userProfileDoc);
-      if (userProfileSnapshot.exists()) {
-        const data = userProfileSnapshot.data();
-        setProfileImageUrl(data.profileImageUrl); // Carrega a URL da imagem
+      try {
+        const userProfileDoc = doc(db, 'users', auth.currentUser.uid);
+        const userProfileSnapshot = await getDoc(userProfileDoc);
+        if (userProfileSnapshot.exists()) {
+          const data = userProfileSnapshot.data();
+          setProfileImageUrl(data.profileImageUrl);
+        }
+      } catch (error) {
+        console.error("Erro ao buscar dados do perfil:", error);
       }
     }
   };
 
-  // Função para adicionar ou editar nota
   const addOrEditNote = async () => {
     if (title.trim() && note.trim()) {
-      if (editingIndex !== null) {
-        // Editando uma nota existente
-        const noteDocRef = doc(db, 'notes', notes[editingIndex].id);
-        await setDoc(noteDocRef, { title, note });
-        fetchNotes(); // Atualiza a lista após edição
-      } else {
-        // Adicionando uma nova nota
-        await addDoc(collection(db, 'notes'), { title, note, uid: auth.currentUser.uid });
-        fetchNotes(); // Atualiza a lista após adição
+      try {
+        if (editingIndex !== null) {
+          const noteDocRef = doc(db, 'notes', notes[editingIndex].id);
+          await setDoc(noteDocRef, { title, note });
+          fetchNotes();
+        } else {
+          await addDoc(collection(db, 'notes'), { title, note, uid: auth.currentUser.uid });
+          fetchNotes();
+        }
+        setTitle('');
+        setNote('');
+        setIsModalVisible(false);
+        setEditingIndex(null);
+      } catch (error) {
+        Alert.alert('Erro', 'Ocorreu um erro ao salvar a nota.');
+        console.error("Erro ao salvar nota:", error);
       }
-      setTitle('');
-      setNote('');
-      setIsModalVisible(false);
-      setEditingIndex(null);
     } else {
       Alert.alert('Erro', 'O título e a nota não podem estar vazios.');
     }
   };
 
   const deleteNote = async (index) => {
-    const noteDocRef = doc(db, 'notes', notes[index].id);
-    await deleteDoc(noteDocRef);
-    fetchNotes(); // Atualiza a lista após a exclusão
+    try {
+      const noteDocRef = doc(db, 'notes', notes[index].id);
+      await deleteDoc(noteDocRef);
+      fetchNotes();
+    } catch (error) {
+      Alert.alert('Erro', 'Ocorreu um erro ao deletar a nota.');
+      console.error("Erro ao deletar nota:", error);
+    }
   };
 
   const openEditModal = (index) => {
@@ -125,14 +136,13 @@ export default function HomeScreen({ navigation }) {
         const source = { uri: response.assets[0].uri };
         setProfileImage(source);
 
-        // Faz upload da imagem para o Firebase Storage
         const storageRef = ref(storage, `profileImages/${auth.currentUser.uid}`);
         const responseBlob = await fetch(response.assets[0].uri);
         const blob = await responseBlob.blob();
 
         uploadBytes(storageRef, blob).then((snapshot) => {
           getDownloadURL(snapshot.ref).then(async (downloadURL) => {
-            setProfileImageUrl(downloadURL); // Define a URL da imagem para exibição
+            setProfileImageUrl(downloadURL);
             await setDoc(doc(db, 'users', auth.currentUser.uid), { profileImageUrl: downloadURL });
             Alert.alert('Sucesso', 'Imagem de perfil atualizada!');
           });
@@ -144,7 +154,7 @@ export default function HomeScreen({ navigation }) {
   const handleLogout = async () => {
     try {
       await auth.signOut();
-      navigation.replace('LoginScreen'); // Volta para a tela de login após o logout
+      navigation.replace('LoginScreen');
     } catch (error) {
       Alert.alert('Erro ao sair da conta', error.message);
     }
@@ -244,23 +254,7 @@ export default function HomeScreen({ navigation }) {
   );
 }
 
-const Drawer = createDrawerNavigator();
 
-function App() {
-  return (
-    <NavigationContainer>
-      <Drawer.Navigator initialRouteName="HomeScreen">
-        <Drawer.Screen name="HomeScreen" component={HomeScreen} options={{ title: 'Home' }} />
-        <Drawer.Screen name="PomodoroScreen" component={PomodoroScreen} options={{ title: 'Pomodoro' }} />
-        <Drawer.Screen name="SettingsScreen" component={SettingsScreen} options={{ title: 'Configurações' }} />
-        <Drawer.Screen name="HelpScreen" component={HelpScreen} options={{ title: 'Ajuda' }} />
-        <Drawer.Screen name="FeedbackScreen" component={FeedbackScreen} options={{ title: 'Feedback' }} />
-      </Drawer.Navigator>
-    </NavigationContainer>
-  );
-}
-
-// Estilos
 const styles = StyleSheet.create({
   container: {
     flex: 1,
