@@ -1,41 +1,70 @@
-import React, { useState, useEffect } from 'react';
-import { createDrawerNavigator } from '@react-navigation/drawer';
-import { auth } from '../config/firebase'; // Certifique-se de que o Firebase está importado
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { createDrawerNavigator, DrawerContentScrollView, DrawerItemList } from '@react-navigation/drawer';
+import { auth } from '../config/firebase';
 import HomeScreen from '../screens/HomeScreen';
 import PomodoroScreen from '../screens/PomodoroScreen';
 import SettingsScreen from '../screens/SettingsScreen';
-import HelpFeedbackScreen from '../screens/HelpFeedbackScreen';
-import AuthScreen from '../screens/AuthScreen'; // Renomeei para 'AuthScreen'
-
+import AuthScreen from '../screens/AuthScreen'; // Renomeado para 'AuthScreen'
+import ProfileScreen from '../screens/ProfileScreen';
 const Drawer = createDrawerNavigator();
 
-export default function AppNavigator() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+// Componente Customizado para o Drawer
+function CustomDrawerContent(props) {
+  return (
+    <DrawerContentScrollView {...props}>
+      {/* Cabeçalho do Drawer */}
+      <View style={styles.header}>
+        <Text style={styles.title}>PomoFocus</Text>
+      </View>
+      
+      {/* Itens do Drawer */}
+      <DrawerItemList {...props} />
+    </DrawerContentScrollView>
+  );
+}
 
-  useEffect(() => {
-    // Verifica o estado de autenticação do Firebase
+export default function AppNavigator() {
+  const [isAuthenticated, setIsAuthenticated] = React.useState(false);
+
+  React.useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
-      if (user) {
-        setIsAuthenticated(true); // Se o usuário estiver logado, define como autenticado
-      } else {
-        setIsAuthenticated(false); // Se não estiver logado, define como não autenticado
-      }
+      setIsAuthenticated(!!user); // Define true se o usuário estiver logado
     });
 
-    return () => unsubscribe(); // Limpa o listener quando o componente desmonta
+    return () => unsubscribe();
   }, []);
 
   if (!isAuthenticated) {
-    // Se o usuário não estiver autenticado, mostra a tela de Login/Cadastro
     return <AuthScreen />;
   }
 
   return (
-    <Drawer.Navigator initialRouteName="Home">
-      <Drawer.Screen name="Home" component={HomeScreen} />
+    <Drawer.Navigator
+      initialRouteName="Home"
+      drawerContent={(props) => <CustomDrawerContent {...props} />} // Usando o drawer customizado
+    >
+      <Drawer.Screen name="Anotações" component={HomeScreen} />
       <Drawer.Screen name="Pomodoro" component={PomodoroScreen} />
-      <Drawer.Screen name="Settings" component={SettingsScreen} />
-      <Drawer.Screen name="Ajuda e Feedback" component={HelpFeedbackScreen} />
+      <Drawer.Screen name="Resumos" component={SettingsScreen} />
+      <Drawer.Screen name="Perfil" component={ProfileScreen} />
+
+
     </Drawer.Navigator>
   );
 }
+
+// Estilos para o título
+const styles = StyleSheet.create({
+  header: {
+    padding: 20,
+    backgroundColor: '#f5f5f5', // Cor de fundo semelhante ao Google Keep
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+});

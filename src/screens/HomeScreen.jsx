@@ -18,6 +18,7 @@ export default function HomeScreen({ navigation }) {
   const [isProfileModalVisible, setIsProfileModalVisible] = useState(false);
   const [profileImage, setProfileImage] = useState(null);
   const [profileImageUrl, setProfileImageUrl] = useState(null);
+  const [noteColor, setNoteColor] = useState('#fff');
 
   const storage = getStorage();
 
@@ -83,14 +84,15 @@ export default function HomeScreen({ navigation }) {
       try {
         if (editingIndex !== null) {
           const noteDocRef = doc(db, 'notes', notes[editingIndex].id);
-          await setDoc(noteDocRef, { title, note });
+          await setDoc(noteDocRef, { title, note, color: noteColor });
           fetchNotes();
         } else {
-          await addDoc(collection(db, 'notes'), { title, note, uid: auth.currentUser.uid });
+          await addDoc(collection(db, 'notes'), { title, note, color: noteColor, uid: auth.currentUser.uid });
           fetchNotes();
         }
         setTitle('');
         setNote('');
+        setNoteColor('#fff');
         setIsModalVisible(false);
         setEditingIndex(null);
       } catch (error) {
@@ -116,6 +118,7 @@ export default function HomeScreen({ navigation }) {
   const openEditModal = (index) => {
     setTitle(notes[index].title);
     setNote(notes[index].note);
+    setNoteColor(notes[index].color || '#fff'); // Carregue a cor salva
     setEditingIndex(index);
     setIsModalVisible(true);
   };
@@ -151,6 +154,10 @@ export default function HomeScreen({ navigation }) {
     });
   };
 
+  const changeNoteColor = (color) => {
+    setNoteColor(color);
+  };
+
   const handleLogout = async () => {
     try {
       await auth.signOut();
@@ -178,12 +185,16 @@ export default function HomeScreen({ navigation }) {
           keyExtractor={(item) => item.id}
           renderItem={({ item, index }) => (
             <TouchableOpacity onPress={() => openEditModal(index)}>
-              <View style={styles.noteItem}>
-                <Text style={styles.noteTitle}>{item.title}</Text>
-                <Text style={styles.noteText}>{item.note}</Text>
-                <TouchableOpacity onPress={() => deleteNote(index)}>
-                  <Text style={styles.deleteButtonText}>Deletar</Text>
-                </TouchableOpacity>
+              <View style={[styles.noteItem, { backgroundColor: item.color || '#fff' }]}>
+                <View style={styles.noteContent}>
+                  <View>
+                    <Text style={styles.noteTitle}>{item.title}</Text>
+                    <Text style={styles.noteText}>{item.note}</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => deleteNote(index)}>
+                    <Ionicons name="trash-outline" size={24} color="red" />
+                  </TouchableOpacity>
+                </View>
               </View>
             </TouchableOpacity>
           )}
@@ -216,6 +227,16 @@ export default function HomeScreen({ navigation }) {
               onChangeText={setNote}
               multiline
             />
+            <View style={styles.colorPicker}>
+              {['#fff', '#f28b82', '#fbbc04', '#ccff90', '#a7ffeb', '#d7aefb'].map(color => (
+                <TouchableOpacity
+                  key={color}
+                  style={[styles.colorOption, { backgroundColor: color }]}
+                  onPress={() => changeNoteColor(color)}
+                />
+              ))}
+            </View>
+
             <View style={styles.modalButtons}>
               <TouchableOpacity style={styles.saveButton} onPress={addOrEditNote}>
                 <Text style={styles.saveButtonText}>
@@ -236,13 +257,13 @@ export default function HomeScreen({ navigation }) {
             {profileImageUrl ? (
               <Image source={{ uri: profileImageUrl }} style={styles.profileImage} />
             ) : (
-              <Ionicons name="person-circle-outline" size={100} color="#ccc" />
+              <Ionicons name="person-circle-outline" size={100} color="#000" />
             )}
             <TouchableOpacity style={styles.imagePickerButton} onPress={openImagePicker}>
-              <Text style={styles.imagePickerButtonText}>Selecionar Imagem</Text>
+              <Text style={styles.imagePickerButtonText}>Escolher Imagem</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-              <Text style={styles.logoutButtonText}>Logout</Text>
+              <Text style={styles.logoutButtonText}>Sair da Conta</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.cancelButton} onPress={() => setIsProfileModalVisible(false)}>
               <Text style={styles.cancelButtonText}>Fechar</Text>
@@ -254,126 +275,30 @@ export default function HomeScreen({ navigation }) {
   );
 }
 
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  searchInput: {
-    backgroundColor: '#e0e0e0',
-    padding: 8,
-    borderRadius: 8,
-    width: 250,
-  },
-  noteItem: {
-    backgroundColor: '#fff',
-    padding: 20,
-    marginVertical: 10,
-    marginHorizontal: 20,
-    borderRadius: 10,
-    elevation: 3,
-  },
-  noteTitle: {
-    fontWeight: 'bold',
-    fontSize: 18,
-  },
-  noteText: {
-    fontSize: 16,
-    marginTop: 5,
-  },
-  addButton: {
-    backgroundColor: '#2196F3',
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'absolute',
-    bottom: 20,
-    right: 20,
-    elevation: 5,
-  },
-  addButtonText: {
-    color: '#fff',
-    fontSize: 36,
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 10,
-    width: '80%',
-  },
-  input: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
-    marginBottom: 10,
-    fontSize: 16,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 10,
-  },
-  saveButton: {
-    backgroundColor: '#4CAF50',
-    padding: 10,
-    borderRadius: 5,
-  },
-  saveButtonText: {
-    color: '#fff',
-  },
-  cancelButton: {
-    backgroundColor: '#f44336',
-    padding: 10,
-    borderRadius: 5,
-  },
-  cancelButtonText: {
-    color: '#fff',
-  },
-  deleteButtonText: {
-    color: '#f44336',
-    marginTop: 10,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: 18,
-    color: '#ccc',
-    marginTop: 10,
-  },
-  profileImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    marginBottom: 20,
-  },
-  imagePickerButton: {
-    backgroundColor: '#2196F3',
-    padding: 10,
-    borderRadius: 5,
-    marginBottom: 10,
-  },
-  imagePickerButtonText: {
-    color: '#fff',
-  },
-  logoutButton: {
-    backgroundColor: '#f44336',
-    padding: 10,
-    borderRadius: 5,
-    marginBottom: 10,
-  },
-  logoutButtonText: {
-    color: '#fff',
-  },
+  container: { flex: 1, backgroundColor: '#fff', padding: 20 },
+  searchInput: { backgroundColor: '#f1f1f1', padding: 10, borderRadius: 10, fontSize: 16, width: '100%' },
+  addButton: { backgroundColor: '#4285F4', borderRadius: 100, padding: 20, position: 'absolute', bottom: 20, right: 30 },
+  addButtonText: { fontSize: 30, color: '#fff' },
+  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  emptyText: { fontSize: 18, color: '#ccc', marginTop: 10 },
+  noteItem: { padding: 15, borderRadius: 10, marginBottom: 10 },
+  noteContent: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, // Ajuste aqui
+  noteTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 5 },
+  noteText: { fontSize: 16 },
+  modalContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' },
+  modalContent: { backgroundColor: '#fff', padding: 20, borderRadius: 10, width: '80%' },
+  input: { backgroundColor: '#f1f1f1', padding: 10, marginBottom: 10, borderRadius: 10, fontSize: 16 },
+  modalButtons: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
+  saveButton: { backgroundColor: '#4285F4', padding: 10, borderRadius: 10 },
+  saveButtonText: { color: '#fff', fontSize: 16 },
+  cancelButton: { backgroundColor: '#ccc', padding: 10, borderRadius: 10 },
+  cancelButtonText: { color: '#fff', fontSize: 16 },
+  colorPicker: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 10 },
+  colorOption: { width: 30, height: 30, borderRadius: 15, borderWidth: 1, borderColor: '#ccc' },
+  profileImage: { width: 100, height: 100, borderRadius: 50, marginBottom: 20 },
+  imagePickerButton: { backgroundColor: '#4285F4', padding: 10, borderRadius: 10, marginBottom: 10 },
+  imagePickerButtonText: { color: '#fff', fontSize: 16 },
+  logoutButton: { backgroundColor: '#EA4335', padding: 10, borderRadius: 10, marginBottom: 10 },
+  logoutButtonText: { color: '#fff', fontSize: 16 },
 });
-

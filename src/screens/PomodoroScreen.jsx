@@ -56,8 +56,8 @@ export default function PomodoroScreen({ navigation }) {
   useEffect(() => {
     return sound
       ? () => {
-          sound.unloadAsync();
-        }
+        sound.unloadAsync();
+      }
       : undefined;
   }, [sound]);
 
@@ -173,9 +173,7 @@ export default function PomodoroScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity style={[styles.button, styles.musicButton]} onPress={toggleMusic}>
-        <Text style={styles.buttonText}>{isMusicOn ? 'Desligar Música' : 'Ligar Música'}</Text>
-      </TouchableOpacity>
+
     </View>
   );
 }
