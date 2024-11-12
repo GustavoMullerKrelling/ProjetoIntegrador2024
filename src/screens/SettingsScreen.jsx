@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, Modal, Pressable, TextInput, FlatList, CheckBox, Alert } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { auth, db } from '../config/firebase'; // Suas configurações do Firebase aqui
+import { db, auth } from '../config/firebase'; // Importar suas configurações do Firebase
 import { collection, addDoc, getDocs, deleteDoc, doc, setDoc, query, where } from 'firebase/firestore';
 
 export default function App() {
@@ -21,12 +21,12 @@ export default function App() {
     'pink', 'purple', 'brown', 'gray', 'black'
   ];
 
-  // Função para buscar os quadrados do Firestore associados ao email do usuário
+  // Função para buscar dados do Firestore
   const fetchSquares = async () => {
     try {
       if (auth.currentUser) {
-        const userEmail = auth.currentUser.email; // Captura o email do usuário logado
-        const squaresQuery = query(collection(db, 'squares'), where('email', '==', userEmail)); // Filtra pelo email do usuário
+        const userEmail = auth.currentUser.email;
+        const squaresQuery = query(collection(db, 'squares'), where('email', '==', userEmail));
         const squaresSnapshot = await getDocs(squaresQuery);
         const squaresList = squaresSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setSquares(squaresList);
@@ -37,24 +37,24 @@ export default function App() {
   };
 
   useEffect(() => {
-    fetchSquares(); // Buscar quadrados ao carregar o componente
+    fetchSquares(); // Carrega os quadrados do Firestore ao iniciar o app
   }, []);
 
+  // Função para adicionar um novo quadrado ao Firestore
   const addSquare = async () => {
     if (title.trim() === '') {
       alert('Por favor, insira um título.');
       return;
     }
     try {
-      const userEmail = auth.currentUser ? auth.currentUser.email : 'anonimo'; // Adiciona o email do usuário logado
+      const userEmail = auth.currentUser ? auth.currentUser.email : 'anonimo';
       await addDoc(collection(db, 'squares'), {
         color: selectedColor,
         title,
         content,
-        uid: auth.currentUser ? auth.currentUser.uid : 'anonimo',
-        email: userEmail, // Salva o email do usuário junto com o quadrado
+        email: userEmail,
       });
-      fetchSquares(); // Atualiza a lista de quadrados após adicionar
+      fetchSquares(); // Atualiza a lista após adicionar
       setModalVisible(false);
       setTitle('');
       setContent('');
@@ -64,12 +64,13 @@ export default function App() {
     }
   };
 
+  // Função para editar um quadrado existente no Firestore
   const finishEditing = async (index) => {
     const squareToEdit = squares[index];
     try {
       const squareDocRef = doc(db, 'squares', squareToEdit.id);
       await setDoc(squareDocRef, { ...squareToEdit, content: editText }, { merge: true });
-      fetchSquares(); // Atualiza a lista de quadrados após edição
+      fetchSquares(); // Atualiza a lista após a edição
       setEditingIndex(null);
       setEditText('');
       setEditModalVisible(false);
@@ -79,6 +80,7 @@ export default function App() {
     }
   };
 
+  // Função para deletar quadrados selecionados do Firestore
   const deleteSelectedSquares = async () => {
     try {
       for (let index of selectedSquares) {
@@ -104,15 +106,29 @@ export default function App() {
     setSelectedSquares(updatedSelectedSquares);
   };
 
+  const openEditModal = (index) => {
+    setEditingIndex(index);
+    setEditText(squares[index].content);
+    setEditModalVisible(true);
+  };
+
   return (
     <View style={styles.container}>
-      {/* Botão para abrir modal de adicionar quadrado */}
+      <View style={styles.textContainer}>
+        <Icon name="edit" size={24} color="#000" />
+        <Text style={styles.text}>Resumos</Text>
+      </View>
       <TouchableOpacity style={styles.button} onPress={() => setModalVisible(true)}>
         <MaterialCommunityIcons name="plus" size={24} color="white" />
       </TouchableOpacity>
 
       {/* Modal para adicionar quadrado */}
-      <Modal animationType="slide" transparent={true} visible={modalVisible}>
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Escolha uma cor e insira um título</Text>
@@ -123,7 +139,7 @@ export default function App() {
               onChangeText={setTitle}
             />
             <TextInput
-              style={[styles.titleInput, { height: 100 }]} // Aumenta a altura do campo de resumo
+              style={[styles.titleInput, { height: 100 }]}
               placeholder="Resumo"
               value={content}
               onChangeText={setContent}
@@ -144,19 +160,17 @@ export default function App() {
             <TouchableOpacity style={styles.modalButton} onPress={addSquare}>
               <Text style={styles.modalButtonText}>Adicionar Quadrado</Text>
             </TouchableOpacity>
-            {/* Botão Cancelar para fechar o modal */}
-            <TouchableOpacity
-              style={[styles.modalButton, { backgroundColor: '#ccc', marginTop: 10 }]}
-              onPress={() => setModalVisible(false)}
-            >
-              <Text style={styles.modalButtonText}>Cancelar</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </Modal>
 
       {/* Modal para editar o resumo */}
-      <Modal animationType="slide" transparent={false} visible={editModalVisible}>
+      <Modal
+        animationType="slide"
+        transparent={false}
+        visible={editModalVisible}
+        onRequestClose={() => setEditModalVisible(false)}
+      >
         <View style={styles.fullScreenModalContainer}>
           <View style={styles.fullScreenModalContent}>
             <Text style={styles.modalTitle}>Editar Resumo</Text>
@@ -167,21 +181,16 @@ export default function App() {
               onChangeText={setEditText}
               multiline
             />
-            <TouchableOpacity style={styles.modalButton} onPress={() => finishEditing(editingIndex)}>
-              <Text style={styles.modalButtonText}>Salvar</Text>
-            </TouchableOpacity>
-            {/* Botão Cancelar para fechar o modal de edição */}
             <TouchableOpacity
-              style={[styles.modalButton, { backgroundColor: '#ccc', marginTop: 10 }]}
-              onPress={() => setEditModalVisible(false)}
+              style={styles.modalButton}
+              onPress={() => finishEditing(editingIndex)}
             >
-              <Text style={styles.modalButtonText}>Cancelar</Text>
+              <Text style={styles.modalButtonText}>Salvar</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
 
-      {/* Lista de quadrados */}
       <FlatList
         data={squares}
         keyExtractor={(item, index) => index.toString()}
@@ -189,11 +198,7 @@ export default function App() {
           <View style={styles.squareContainer}>
             <TouchableOpacity
               style={[styles.square, { backgroundColor: item.color }]}
-              onPress={() => {
-                setEditingIndex(index);
-                setEditText(item.content);
-                setEditModalVisible(true);
-              }}
+              onPress={() => openEditModal(index)}
             >
               <Text style={styles.squareTitle}>{item.title}</Text>
             </TouchableOpacity>
@@ -205,7 +210,6 @@ export default function App() {
         )}
       />
 
-      {/* Botão de deletar quadrados */}
       <TouchableOpacity style={styles.deleteButton} onPress={deleteSelectedSquares}>
         <Text style={styles.deleteButtonText}>Concluído</Text>
       </TouchableOpacity>
@@ -242,74 +246,92 @@ const styles = StyleSheet.create({
   squareContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    marginVertical: 10,
   },
   square: {
-    width: 100,
+    flex: 1,
     height: 100,
-    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 10,
+    marginHorizontal: 10,
+    borderRadius: 5,
+    padding: 10,
   },
   squareTitle: {
-    color: '#fff',
+    color: 'white',
     fontSize: 16,
+    textAlign: 'center',
     fontWeight: 'bold',
+  },
+  titleInput: {
+    width: '100%',
+    borderWidth: 1,
+    borderColor: '#ccc',
+    padding: 10,
+    borderRadius: 5,
+    marginBottom: 10,
   },
   modalContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   modalContent: {
-    width: '80%',
+    backgroundColor: 'white',
     padding: 20,
-    backgroundColor: '#fff',
     borderRadius: 10,
+    width: 300,
     alignItems: 'center',
   },
-  titleInput: {
-    width: '100%',
-    padding: 10,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 5,
-    marginBottom: 10,
+  modalTitle: {
+    fontSize: 18,
+    marginBottom: 20,
   },
   colorButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     margin: 5,
   },
   colorRow: {
     justifyContent: 'space-between',
   },
   modalButton: {
-    width: '100%',
-    padding: 15,
     backgroundColor: '#007bff',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
     borderRadius: 5,
-    alignItems: 'center',
+    marginTop: 10,
   },
   modalButtonText: {
-    color: '#fff',
+    color: 'white',
     fontSize: 16,
-    fontWeight: 'bold',
   },
   deleteButton: {
-    marginTop: 20,
-    padding: 15,
-    backgroundColor: '#ff0000',
+    backgroundColor: '#ff4d4d',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
     borderRadius: 5,
+    marginTop: 20,
+    marginBottom: 10,
     alignItems: 'center',
-    width: 300,
+    width: 200,
   },
   deleteButtonText: {
-    color: '#fff',
+    color: 'white',
     fontSize: 16,
-    fontWeight: 'bold',
+  },
+  fullScreenModalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'white',
+  },
+  fullScreenModalContent: {
+    flex: 1,
+    padding: 20,
+    width: '100%',
+    justifyContent: 'center',
   },
 });
