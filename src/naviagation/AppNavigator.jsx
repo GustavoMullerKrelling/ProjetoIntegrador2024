@@ -44,7 +44,7 @@ export default function AppNavigator() {
       initialRouteName="Home"
       drawerContent={(props) => <CustomDrawerContent {...props} />} // Usando o drawer customizado
     >
-      <Drawer.Screen name="Anotações" component={HomeScreen} />
+      <Drawer.Screen name="Home" component={HomeScreen} />
       <Drawer.Screen name="Pomodoro" component={PomodoroScreen} />
       <Drawer.Screen name="Resumos" component={SettingsScreen} />
       <Drawer.Screen name="Perfil" component={ProfileScreen} />

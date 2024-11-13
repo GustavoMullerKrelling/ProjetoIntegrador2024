@@ -132,7 +132,7 @@ export default function PomodoroScreen({ navigation }) {
           size={200} // Tamanho do círculo
           width={10} // Largura do círculo
           fill={progressPercentage()} // Porcentagem de preenchimento
-          tintColor="#9a8c98" // Cor da barra de progresso
+          tintColor="#87cefa" // Cor da barra de progresso
           backgroundColor="#f2e9e4" // Cor de fundo
         >
           {() => (
@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 42,
     fontWeight: '600',
-    color: '#4a4e69',
+    color: '#',
     marginBottom: 30,
   },
   timer: {
@@ -212,10 +212,10 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   startButton: {
-    backgroundColor: '#9a8c98',
+    backgroundColor: '#87cefa',
   },
   resetButton: {
-    backgroundColor: '#f2e9e4',
+    backgroundColor: '#ffff',
   },
   musicButton: {
     backgroundColor: '#c9ada7',
@@ -244,12 +244,12 @@ const styles = StyleSheet.create({
   },
   timeButton: {
     padding: 10,
-    backgroundColor: '#9a8c98',
+    backgroundColor: 'aliceblue',
     borderRadius: 5,
     margin: 5,
   },
   timeButtonText: {
-    color: 'white',
+    color: '#000',
     fontSize: 16,
   },
 });

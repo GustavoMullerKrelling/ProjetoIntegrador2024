@@ -1,337 +1,422 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Modal, Pressable, TextInput, FlatList, CheckBox, Alert } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import Icon from 'react-native-vector-icons/MaterialIcons';
-import { db, auth } from '../config/firebase'; // Importar suas configurações do Firebase
-import { collection, addDoc, getDocs, deleteDoc, doc, setDoc, query, where } from 'firebase/firestore';
-
-export default function App() {
-  const [squares, setSquares] = useState([]);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [editModalVisible, setEditModalVisible] = useState(false);
-  const [selectedColor, setSelectedColor] = useState('#007bff');
+import React, { useState, useEffect, useRef } from 'react';
+import { StyleSheet, Text, View, TextInput, TouchableOpacity, FlatList, Modal, Image, Animated } from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import { launchImageLibrary } from 'react-native-image-picker';
+ 
+export default function HomeScreen({ navigation }) {
   const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
+  const [note, setNote] = useState('');
+  const [notes, setNotes] = useState([]);
+  const [noteColor, setNoteColor] = useState('#fff');
+  const [searchText, setSearchText] = useState('');
+  const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingIndex, setEditingIndex] = useState(null);
-  const [editText, setEditText] = useState('');
-  const [selectedSquares, setSelectedSquares] = useState(new Set());
-
-  const colorPalette = [
-    'red', 'orange', 'yellow', 'green', 'blue', 'indigo', 'violet',
-    'pink', 'purple', 'brown', 'gray', 'black'
-  ];
-
-  // Função para buscar dados do Firestore
-  const fetchSquares = async () => {
-    try {
-      if (auth.currentUser) {
-        const userEmail = auth.currentUser.email;
-        const squaresQuery = query(collection(db, 'squares'), where('email', '==', userEmail));
-        const squaresSnapshot = await getDocs(squaresQuery);
-        const squaresList = squaresSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setSquares(squaresList);
-      }
-    } catch (error) {
-      console.error('Erro ao buscar quadrados:', error);
-    }
-  };
-
+  const [isProfileModalVisible, setIsProfileModalVisible] = useState(false);
+  const [profileImage, setProfileImage] = useState(null);
+  const [isColorPickerVisible, setIsColorPickerVisible] = useState(false);
+ 
+  const modalAnimation = useRef(new Animated.Value(0)).current;
+  const addButtonAnimation = useRef(new Animated.Value(1)).current;
+  const profileScaleAnimation = useRef(new Animated.Value(0)).current;
+ 
   useEffect(() => {
-    fetchSquares(); // Carrega os quadrados do Firestore ao iniciar o app
-  }, []);
-
-  // Função para adicionar um novo quadrado ao Firestore
-  const addSquare = async () => {
-    if (title.trim() === '') {
-      alert('Por favor, insira um título.');
-      return;
-    }
-    try {
-      const userEmail = auth.currentUser ? auth.currentUser.email : 'anonimo';
-      await addDoc(collection(db, 'squares'), {
-        color: selectedColor,
-        title,
-        content,
-        email: userEmail,
-      });
-      fetchSquares(); // Atualiza a lista após adicionar
-      setModalVisible(false);
-      setTitle('');
-      setContent('');
-    } catch (error) {
-      Alert.alert('Erro', 'Ocorreu um erro ao adicionar o quadrado.');
-      console.error('Erro ao adicionar quadrado:', error);
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity onPress={openProfileModal}>
+          <Ionicons name="person-circle-outline" size={30} color="#000" style={{ marginRight: 15 }} />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation]);
+ 
+  const addOrEditNote = () => {
+    if (title.trim() && note.trim()) {
+      const newNote = { title, note, color: noteColor };
+      const updatedNotes = [...notes];
+      editingIndex !== null ? (updatedNotes[editingIndex] = newNote) : updatedNotes.push(newNote);
+      setNotes(updatedNotes);
+      resetNote();
+      closeModal();
     }
   };
-
-  // Função para editar um quadrado existente no Firestore
-  const finishEditing = async (index) => {
-    const squareToEdit = squares[index];
-    try {
-      const squareDocRef = doc(db, 'squares', squareToEdit.id);
-      await setDoc(squareDocRef, { ...squareToEdit, content: editText }, { merge: true });
-      fetchSquares(); // Atualiza a lista após a edição
-      setEditingIndex(null);
-      setEditText('');
-      setEditModalVisible(false);
-    } catch (error) {
-      Alert.alert('Erro', 'Ocorreu um erro ao editar o quadrado.');
-      console.error('Erro ao editar quadrado:', error);
-    }
-  };
-
-  // Função para deletar quadrados selecionados do Firestore
-  const deleteSelectedSquares = async () => {
-    try {
-      for (let index of selectedSquares) {
-        const squareToDelete = squares[index];
-        const squareDocRef = doc(db, 'squares', squareToDelete.id);
-        await deleteDoc(squareDocRef);
-      }
-      fetchSquares(); // Atualiza a lista após deletar
-      setSelectedSquares(new Set());
-    } catch (error) {
-      Alert.alert('Erro', 'Ocorreu um erro ao deletar os quadrados.');
-      console.error('Erro ao deletar quadrado:', error);
-    }
-  };
-
-  const toggleSelectSquare = (index) => {
-    const updatedSelectedSquares = new Set(selectedSquares);
-    if (updatedSelectedSquares.has(index)) {
-      updatedSelectedSquares.delete(index);
-    } else {
-      updatedSelectedSquares.add(index);
-    }
-    setSelectedSquares(updatedSelectedSquares);
-  };
-
+ 
+  const deleteNote = (index) => setNotes(notes.filter((_, i) => i !== index));
   const openEditModal = (index) => {
+    setTitle(notes[index].title);
+    setNote(notes[index].note);
+    setNoteColor(notes[index].color);
     setEditingIndex(index);
-    setEditText(squares[index].content);
-    setEditModalVisible(true);
+    openModal();
   };
-
+ 
+  const openImagePicker = () => {
+    const options = { mediaType: 'photo', maxWidth: 300, maxHeight: 300, quality: 1 };
+    launchImageLibrary(options, (response) => {
+      if (response.assets) setProfileImage({ uri: response.assets[0].uri });
+    });
+  };
+ 
+  const goToRegisterPage = () => navigation.navigate('Register'); // Nome da tela de cadastro
+ 
+  const resetNote = () => {
+    setTitle('');
+    setNote('');
+    setNoteColor('#fff');
+    setEditingIndex(null);
+  };
+ 
+  const openModal = () => {
+    setIsModalVisible(true);
+    Animated.timing(modalAnimation, { toValue: 1, duration: 400, useNativeDriver: true }).start();
+  };
+ 
+  const closeModal = () => {
+    Animated.timing(modalAnimation, { toValue: 0, duration: 300, useNativeDriver: true }).start(() => {
+      setIsModalVisible(false);
+      resetNote();
+    });
+  };
+ 
+  const pressAddButton = () => {
+    Animated.sequence([
+      Animated.timing(addButtonAnimation, { toValue: 0.9, duration: 100, useNativeDriver: true }),
+      Animated.timing(addButtonAnimation, { toValue: 1, duration: 100, useNativeDriver: true }),
+    ]).start(openModal);
+  };
+ 
+  const openProfileModal = () => {
+    setIsProfileModalVisible(true);
+    Animated.spring(profileScaleAnimation, { toValue: 1, friction: 5, useNativeDriver: true }).start();
+  };
+ 
+  const closeProfileModal = () => {
+    Animated.timing(profileScaleAnimation, { toValue: 0, duration: 300, useNativeDriver: true }).start(() => setIsProfileModalVisible(false));
+  };
+ 
+  const changeNoteColor = (color) => setNoteColor(color);
+ 
+  const filteredNotes = notes.filter(
+    (note) =>
+      note.title.toLowerCase().includes(searchText.toLowerCase()) ||
+      note.note.toLowerCase().includes(searchText.toLowerCase())
+  );
+ 
   return (
     <View style={styles.container}>
-      <View style={styles.textContainer}>
-        <Icon name="edit" size={24} color="#000" />
-        <Text style={styles.text}>Resumos</Text>
-      </View>
-      <TouchableOpacity style={styles.button} onPress={() => setModalVisible(true)}>
-        <MaterialCommunityIcons name="plus" size={24} color="white" />
-      </TouchableOpacity>
-
-      {/* Modal para adicionar quadrado */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Escolha uma cor e insira um título</Text>
-            <TextInput
-              style={styles.titleInput}
-              placeholder="Título do Resumo"
-              value={title}
-              onChangeText={setTitle}
-            />
-            <TextInput
-              style={[styles.titleInput, { height: 100 }]}
-              placeholder="Resumo"
-              value={content}
-              onChangeText={setContent}
-              multiline
-            />
-            <FlatList
-              data={colorPalette}
-              numColumns={4}
-              renderItem={({ item }) => (
-                <Pressable
-                  style={[styles.colorButton, { backgroundColor: item }]}
-                  onPress={() => setSelectedColor(item)}
-                />
-              )}
-              keyExtractor={(item) => item}
-              columnWrapperStyle={styles.colorRow}
-            />
-            <TouchableOpacity style={styles.modalButton} onPress={addSquare}>
-              <Text style={styles.modalButtonText}>Adicionar Quadrado</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Modal para editar o resumo */}
-      <Modal
-        animationType="slide"
-        transparent={false}
-        visible={editModalVisible}
-        onRequestClose={() => setEditModalVisible(false)}
-      >
-        <View style={styles.fullScreenModalContainer}>
-          <View style={styles.fullScreenModalContent}>
-            <Text style={styles.modalTitle}>Editar Resumo</Text>
-            <TextInput
-              style={[styles.titleInput, { height: '100%' }]}
-              placeholder="Resumo"
-              value={editText}
-              onChangeText={setEditText}
-              multiline
-            />
-            <TouchableOpacity
-              style={styles.modalButton}
-              onPress={() => finishEditing(editingIndex)}
-            >
-              <Text style={styles.modalButtonText}>Salvar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      <FlatList
-        data={squares}
-        keyExtractor={(item, index) => index.toString()}
-        renderItem={({ item, index }) => (
-          <View style={styles.squareContainer}>
-            <TouchableOpacity
-              style={[styles.square, { backgroundColor: item.color }]}
-              onPress={() => openEditModal(index)}
-            >
-              <Text style={styles.squareTitle}>{item.title}</Text>
-            </TouchableOpacity>
-            <CheckBox
-              value={selectedSquares.has(index)}
-              onValueChange={() => toggleSelectSquare(index)}
-            />
-          </View>
-        )}
+      <TextInput
+        style={styles.searchInput}
+        placeholder="Pesquisar resumos..."
+        value={searchText}
+        onChangeText={setSearchText}
       />
-
-      <TouchableOpacity style={styles.deleteButton} onPress={deleteSelectedSquares}>
-        <Text style={styles.deleteButtonText}>Concluído</Text>
-      </TouchableOpacity>
+ 
+      {filteredNotes.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="document-outline" size={80} color="#ccc" />
+          <Text style={styles.emptyText}>Os resumos adicionados aparecem aqui</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredNotes}
+          keyExtractor={(item, index) => index.toString()}
+          renderItem={({ item, index }) => (
+            <Animated.View style={[styles.noteItem, { backgroundColor: item.color }]}>
+              <TouchableOpacity onPress={() => openEditModal(index)}>
+                <Text style={styles.noteTitle}>{item.title}</Text>
+                <Text style={styles.noteText}>{item.note}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => deleteNote(index)}>
+                <Ionicons name="trash-outline" size={24} color="red" />
+              </TouchableOpacity>
+            </Animated.View>
+          )}
+        />
+      )}
+ 
+      <Animated.View style={[styles.addButton, { transform: [{ scale: addButtonAnimation }] }]}>
+        <TouchableOpacity onPress={pressAddButton}>
+          <Text style={styles.addButtonText}>+</Text>
+        </TouchableOpacity>
+      </Animated.View>
+ 
+      <Modal visible={isModalVisible} animationType="none" transparent={true}>
+        <Animated.View
+          style={[
+            styles.modalContainer,
+            { opacity: modalAnimation, transform: [{ translateY: modalAnimation.interpolate({ inputRange: [0, 1], outputRange: [300, 0] }) }] },
+          ]}
+        >
+          <View style={styles.modalContent}>
+            <TextInput style={styles.input} placeholder="Título do resumo" value={title} onChangeText={setTitle} />
+            <TextInput
+              style={[styles.input, styles.noteInput]}
+              placeholder="Escreva seu resumo aqui..."
+              value={note}
+              onChangeText={setNote}
+              multiline
+              textAlignVertical="top"
+            />
+            <View style={styles.colorPickerContainer}>
+              <TouchableOpacity style={[styles.colorPickerButton, { backgroundColor: noteColor }]} onPress={() => setIsColorPickerVisible(!isColorPickerVisible)}>
+                <Ionicons name="color-palette-outline" size={30} color="#000" />
+              </TouchableOpacity>
+              {isColorPickerVisible && (
+                <View style={styles.colorOptions}>
+                  {['#fff', '#f28b82', '#fbbc04', '#ccff90', '#a7ffeb', '#d7aefb'].map((color) => (
+                    <TouchableOpacity
+                      key={color}
+                      style={[styles.colorOption, { backgroundColor: color }]}
+                      onPress={() => {
+                        changeNoteColor(color);
+                        setIsColorPickerVisible(false);
+                      }}
+                    />
+                  ))}
+                </View>
+              )}
+            </View>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={styles.saveButton} onPress={addOrEditNote}>
+                <Text style={styles.saveButtonText}>{editingIndex !== null ? 'Salvar Edição' : 'Salvar Nota'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.cancelButton} onPress={closeModal}>
+                <Text style={styles.cancelButtonText}>Cancelar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Animated.View>
+      </Modal>
+ 
+      <Modal visible={isProfileModalVisible} animationType="none" transparent={true}>
+        <Animated.View style={[styles.profileModalContainer, { transform: [{ scale: profileScaleAnimation }] }]}>
+          <View style={styles.profileModalContent}>
+            <Text style={styles.profileTitle}>Perfil do Usuário</Text>
+            {profileImage ? <Image source={profileImage} style={styles.profileImage} /> : <Ionicons name="person-circle-outline" size={100} color="#ccc" />}
+            <TouchableOpacity style={styles.uploadButton} onPress={openImagePicker}>
+              <Text style={styles.uploadButtonText}>Escolher Imagem</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.addAccountButton} onPress={goToRegisterPage}>
+              <Text style={styles.addAccountButtonText}>Adicione uma Conta</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.closeProfileButton} onPress={closeProfileModal}>
+              <Text style={styles.closeProfileButtonText}>Fechar</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      </Modal>
     </View>
   );
 }
-
+ 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f0f0f0',
-    padding: 20,
-  },
-  textContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  text: {
-    fontSize: 24,
-    marginLeft: 8,
-  },
-  button: {
-    position: 'absolute',
-    bottom: 20,
-    right: 20,
-    width: 60,
-    height: 60,
-    backgroundColor: '#007bff',
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  squareContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 10,
-  },
-  square: {
-    flex: 1,
-    height: 100,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginHorizontal: 10,
-    borderRadius: 5,
-    padding: 10,
-  },
-  squareTitle: {
-    color: 'white',
-    fontSize: 16,
-    textAlign: 'center',
-    fontWeight: 'bold',
-  },
-  titleInput: {
-    width: '100%',
-    borderWidth: 1,
-    borderColor: '#ccc',
-    padding: 10,
-    borderRadius: 5,
-    marginBottom: 10,
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  modalContent: {
-    backgroundColor: 'white',
-    padding: 20,
-    borderRadius: 10,
-    width: 300,
-    alignItems: 'center',
-  },
-  modalTitle: {
-    fontSize: 18,
-    marginBottom: 20,
-  },
-  colorButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    margin: 5,
-  },
-  colorRow: {
-    justifyContent: 'space-between',
-  },
-  modalButton: {
-    backgroundColor: '#007bff',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 5,
-    marginTop: 10,
-  },
-  modalButtonText: {
-    color: 'white',
-    fontSize: 16,
-  },
-  deleteButton: {
-    backgroundColor: '#ff4d4d',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 5,
-    marginTop: 20,
-    marginBottom: 10,
-    alignItems: 'center',
-    width: 200,
-  },
-  deleteButtonText: {
-    color: 'white',
-    fontSize: 16,
-  },
-  fullScreenModalContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'white',
-  },
-  fullScreenModalContent: {
-    flex: 1,
-    padding: 20,
-    width: '100%',
-    justifyContent: 'center',
-  },
-});
+    container: {
+      flex: 1,
+      backgroundColor: '#f0f2f5', // Fundo claro e neutro
+      paddingHorizontal: 20,
+      paddingTop: 30,
+    },
+    searchInput: {
+      height: 42,
+      backgroundColor: '#e1e5e8',
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      fontSize: 16,
+      color: '#333',
+      marginBottom: 15,
+    },
+    emptyContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    emptyText: {
+      fontSize: 16,
+      color: '#aaa',
+      marginTop: 10,
+      fontStyle: 'italic',
+    },
+    noteItem: {
+      flexDirection: 'row',
+      padding: 15,
+      borderRadius: 12,
+      marginBottom: 12,
+      backgroundColor: '#fff',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    noteTitle: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: '#444',
+    },
+    noteText: {
+      fontSize: 15,
+      color: '#666',
+    },
+    addButton: {
+      position: 'absolute',
+      bottom: 30,
+      right: 30,
+      backgroundColor: '#87cefa', // Verde discreto
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      justifyContent: 'center',
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 3 },
+      shadowOpacity: 0.3,
+      shadowRadius: 6,
+      elevation: 6,
+    },
+    addButtonText: {
+      fontSize: 32,
+      color: '#fff',
+    },
+    modalContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: 'rgba(0,0,0,0.5)',
+    },
+    modalContent: {
+      width: '85%',
+      padding: 20,
+      backgroundColor: '#ffffff',
+      borderRadius: 12,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.15,
+      shadowRadius: 8,
+      elevation: 5,
+    },
+    input: {
+      height: 42,
+      borderColor: '#ddd',
+      borderWidth: 1,
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      fontSize: 16,
+      color: '#333',
+      marginBottom: 12,
+    },
+    noteInput: {
+      height: 350,
+      paddingVertical: 8,
+      textAlignVertical: 'top',
+    },
+    colorPickerContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    colorPickerButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: '#e0e0e0',
+      marginRight: 12,
+    },
+    colorOptions: {
+      flexDirection: 'row',
+    },
+    colorOption: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      marginRight: 8,
+      borderWidth: 1,
+      borderColor: '#ccc',
+    },
+    modalButtons: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      marginTop: 20,
+    },
+    saveButton: {
+      backgroundColor: '#87cefa',
+      paddingHorizontal: 24,
+      paddingVertical: 12,
+      borderRadius: 8,
+    },
+    saveButtonText: {
+      color: '#fff',
+      fontSize: 16,
+    },
+    cancelButton: {
+      paddingHorizontal: 24,
+      paddingVertical: 12,
+      borderRadius: 8,
+    },
+    cancelButtonText: {
+      color: '#87cefa',
+      fontSize: 16,
+    },
+    profileModalContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: 'rgba(0,0,0,0.5)',
+    },
+    profileModalContent: {
+      width: '85%',
+      padding: 20,
+      backgroundColor: '#ffffff',
+      borderRadius: 12,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.15,
+      shadowRadius: 8,
+      elevation: 5,
+      alignItems: 'center',
+    },
+    profileTitle: {
+      fontSize: 20,
+      fontWeight: '600',
+      color: '#444',
+      marginBottom: 20,
+    },
+    profileImage: {
+      width: 100,
+      height: 100,
+      borderRadius: 50,
+      marginBottom: 20,
+      borderColor: '#e0e0e0',
+      borderWidth: 1,
+    },
+    uploadButton: {
+      backgroundColor: '#007BFF',
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      borderRadius: 8,
+      marginBottom: 10,
+    },
+    uploadButtonText: {
+      color: '#fff',
+      fontSize: 16,
+    },
+    addAccountButton: {
+      backgroundColor: '#28a745',
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      borderRadius: 8,
+      marginBottom: 10,
+    },
+    addAccountButtonText: {
+      color: '#fff',
+      fontSize: 16,
+    },
+    closeProfileButton: {
+      paddingVertical: 10,
+    },
+    closeProfileButtonText: {
+      color: '#007BFF',
+      fontSize: 16,
+    },
+  });
+ 
