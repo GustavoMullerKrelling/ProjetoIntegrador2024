@@ -88,17 +88,6 @@ export default function PomodoroScreen({ navigation }) {
       });
   };
 
-  // Adiciona o botão de logout no header
-  useEffect(() => {
-    navigation.setOptions({
-      headerRight: () => (
-        <TouchableOpacity onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={30} color="black" style={{ marginRight: 15 }} />
-        </TouchableOpacity>
-      ),
-    });
-  }, [navigation]);
-
   // Calcula a porcentagem do tempo restante
   const progressPercentage = () => {
     const totalTime = isWorking ? workTime * 60 : breakTime * 60;
@@ -121,6 +110,17 @@ export default function PomodoroScreen({ navigation }) {
     }
     setModalVisible(false);
   };
+
+  // Adicionando o ícone de perfil no headerRight da barra de navegação
+  React.useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity onPress={() => navigation.navigate('Perfil')}>
+          <Ionicons name="person-circle-outline" size={30} color="#000" style={styles.profileIcon} />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation]);
 
   return (
     <View style={styles.container}>
@@ -172,8 +172,6 @@ export default function PomodoroScreen({ navigation }) {
           <Text style={styles.buttonText}>Resetar</Text>
         </TouchableOpacity>
       </View>
-
-
     </View>
   );
 }
@@ -182,7 +180,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 42,
     fontWeight: '600',
-    color: '#',
+    color: '#000',
     marginBottom: 30,
   },
   timer: {
@@ -195,10 +193,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 20,
+    marginBottom: 40,
   },
   buttonContainer: {
     flexDirection: 'row',
-    marginBottom: 20,
+    marginTop: 20,
   },
   button: {
     paddingVertical: 15,
@@ -251,5 +250,8 @@ const styles = StyleSheet.create({
   timeButtonText: {
     color: '#000',
     fontSize: 16,
+  },
+  profileIcon: {
+    marginRight: 20, // Para garantir que o ícone não fique colado à borda
   },
 });

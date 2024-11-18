@@ -6,7 +6,8 @@ import HomeScreen from '../screens/HomeScreen';
 import PomodoroScreen from '../screens/PomodoroScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import AuthScreen from '../screens/AuthScreen'; // Renomeado para 'AuthScreen'
-import ProfileScreen from '../screens/ProfileScreen';
+import ProfileScreen from '../screens/ProfileScreen1';
+import HelpFeedbackScreen from '../screens/HelpFeedbackScreen';
 const Drawer = createDrawerNavigator();
 
 // Componente Customizado para o Drawer
@@ -47,6 +48,7 @@ export default function AppNavigator() {
       <Drawer.Screen name="Home" component={HomeScreen} />
       <Drawer.Screen name="Pomodoro" component={PomodoroScreen} />
       <Drawer.Screen name="Resumos" component={SettingsScreen} />
+      <Drawer.Screen name="Ajuda & Feedback" component={HelpFeedbackScreen} />
       <Drawer.Screen name="Perfil" component={ProfileScreen} />
 
 
