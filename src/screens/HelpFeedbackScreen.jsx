@@ -20,7 +20,7 @@ export default function HelpFeedbackScreen() {
 
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.title}>Bem-vindo ao aplicativo!</Text>
+      <Text style={styles.title}>Recursos de Ajuda!</Text>
 
       <Text style={styles.subtitle}>Como usar o aplicativo:</Text>
       <Text style={styles.text}>
@@ -34,7 +34,7 @@ export default function HelpFeedbackScreen() {
 
       <Text style={styles.subtitle}>Criar ou editar uma nota:</Text>
       <Text style={styles.text}>
-        Para criar uma nova nota, pressione o botão de "Nova Nota" na tela inicial. Para editar uma nota existente, clique na nota desejada e selecione a opção "Editar". Lembre-se de salvar suas alterações antes de sair.
+        Para criar uma nova nota, pressione o botão de "+" na tela inicial. Para editar uma nota existente, clique na nota desejada e edite o quanto quiser. Lembre-se de salvar suas alterações antes de sair.
       </Text>
 
       <View style={styles.feedbackContainer}>
@@ -66,14 +66,14 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#4a4e69',
+    color: '#000',
     textAlign: 'center',
     marginBottom: 20,
   },
   subtitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#4a4e69',
+    color: '#000',
     marginTop: 20,
   },
   text: {
@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   button: {
-    backgroundColor: '#4a4e69',
+    backgroundColor: '#87cefa',
     padding: 15,
     borderRadius: 10,
     alignItems: 'center',

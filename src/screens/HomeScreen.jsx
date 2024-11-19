@@ -4,6 +4,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { auth, db } from '../config/firebase'; // Importação do Firebase
 import { collection, addDoc, getDocs, deleteDoc, doc, setDoc, query, where } from 'firebase/firestore';
 
+
 export default function HomeScreen({ navigation }) {
   const [title, setTitle] = useState('');
   const [note, setNote] = useState('');

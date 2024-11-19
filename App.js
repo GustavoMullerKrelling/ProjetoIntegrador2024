@@ -1,13 +1,14 @@
 import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import AppNavigator from './src/naviagation/AppNavigator'; // Corrija o caminho para o correto
+import AppNavigator, { NavigationStack } from './src/naviagation/AppNavigator'; // Corrija o caminho para o correto
 
 // 
 
 export default function App() {
   return (
     <NavigationContainer>
-      <AppNavigator />
+      {/* <AppNavigator /> */}
+      <NavigationStack />
     </NavigationContainer>
   );
 }
