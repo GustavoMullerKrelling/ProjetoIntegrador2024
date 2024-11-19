@@ -15,8 +15,8 @@ export default function ProfileScreen({ navigation }) {
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <TouchableOpacity onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={24} color="#EA4335" style={{ marginRight: 15 }} />
+        <TouchableOpacity onPress={handleLogout} style={{ paddingRight: 15 }}>
+          <Ionicons name="log-out-outline" size={24} color="#000" />
         </TouchableOpacity>
       ),
     });

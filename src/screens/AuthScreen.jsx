@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, TextInput, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Image, Alert } from 'react-native';
+import { View, TextInput, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { auth, storage } from '../config/firebase'; // Certifique-se de importar o storage corretamente
+import { auth } from '../config/firebase'; // Remova a importação de storage
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged } from 'firebase/auth';
 import { Ionicons } from '@expo/vector-icons';
-import { launchImageLibrary } from 'react-native-image-picker';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 export default function AuthScreen() {
   const [email, setEmail] = useState('');
@@ -13,57 +11,17 @@ export default function AuthScreen() {
   const [isLogin, setIsLogin] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [profileImageUrl, setProfileImageUrl] = useState(null);
   const navigation = useNavigation();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
-        navigation.navigate('HomeScreen');
+        navigation.navigate('Home');
       }
     });
 
     return unsubscribe;
   }, []);
-
-  const openImagePicker = () => {
-    const options = {
-      mediaType: 'photo',
-      maxWidth: 300,
-      maxHeight: 300,
-      quality: 1,
-    };
-
-    launchImageLibrary(options, async (response) => {
-      if (response.didCancel) {
-        console.log('Usuário cancelou a seleção de imagem');
-      } else if (response.errorMessage) {
-        console.error('Erro ao selecionar imagem:', response.errorMessage);
-        Alert.alert('Erro', 'Ocorreu um erro ao selecionar a imagem.');
-      } else if (response.assets && response.assets.length > 0) {
-        try {
-          const sourceUri = response.assets[0].uri;
-          setProfileImageUrl(sourceUri); // Mostra a imagem selecionada imediatamente
-
-          const storageRef = ref(storage, `profileImages/${email}`);
-          const responseBlob = await fetch(sourceUri);
-          const blob = await responseBlob.blob();
-
-          await uploadBytes(storageRef, blob);
-          const downloadURL = await getDownloadURL(storageRef);
-
-          setProfileImageUrl(downloadURL); // Atualiza com o URL de download após o upload
-          Alert.alert('Sucesso', 'Imagem de perfil carregada com sucesso!');
-        } catch (error) {
-          console.error('Erro ao fazer upload da imagem:', error);
-          Alert.alert('Erro', 'Não foi possível fazer o upload da imagem.');
-        }
-      } else {
-        console.error('Erro: Nenhum arquivo selecionado ou estrutura de resposta inesperada.');
-        Alert.alert('Erro', 'Não foi possível selecionar a imagem.');
-      }
-    });
-  };
 
   const handleSignup = async () => {
     if (!email || !password) {
@@ -123,19 +81,6 @@ export default function AuthScreen() {
 
   return (
     <View style={styles.container}>
-      {!isLogin && (
-        <>
-          {profileImageUrl ? (
-            <Image source={{ uri: profileImageUrl }} style={styles.profileImage} />
-          ) : (
-            <Ionicons name="person-circle-outline" size={100} color="#ccc" style={styles.defaultProfileIcon} />
-          )}
-          <TouchableOpacity style={styles.imagePickerButton} onPress={openImagePicker}>
-            <Text style={styles.imagePickerButtonText}>Escolher Imagem</Text>
-          </TouchableOpacity>
-        </>
-      )}
-
       <Text style={styles.brandTitle}>Pomofocus</Text>
       <Text style={styles.title}>{isLogin ? 'Fazer Login' : 'Fazer Cadastro'}</Text>
 
@@ -196,29 +141,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: 'black',
     marginBottom: 20,
-  },
-  profileImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    alignSelf: 'center',
-    marginBottom: 10,
-  },
-  defaultProfileIcon: {
-    alignSelf: 'center',
-    marginBottom: 10,
-  },
-  imagePickerButton: {
-    backgroundColor: '#4285F4',
-    padding: 10,
-    borderRadius: 8,
-    alignSelf: 'center',
-    marginBottom: 20,
-  },
-  imagePickerButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    textAlign: 'center',
   },
   input: {
     borderWidth: 1,
